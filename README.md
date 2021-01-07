@@ -40,38 +40,38 @@ We create a function to display and analyse the results of our regressions featu
 def plot_weights_data_biasless(plt, X, y, w, title, same_scale = True):
     intercept = w[0]
     w = w[1:]
-    
+
     n = len(w)
     fig, axs = plt.subplots(2, n)
     fig.suptitle(title, fontsize=20)
     y_scale_line = (-1*((max(y)-min(y))/2), (max(y)-min(y))/2)
     y_scale = (min(y), max(y))
-    
+
     x_minimums = X.T.min(axis = 1)
     x_maximums = X.T.max(axis = 1)
     x_size = x_maximums - x_minimums
     max_size = max(x_size)
-    
+
     x = np.linspace(-100, 100, 100)
     for i in range(n):
         if same_scale:
             diff_size = max_size - x_size[i]
             x_scale = (x_minimums[i] - diff_size/2, x_maximums[i] + diff_size/2)            # We make it so all x scales are on the same scale
-            
+
             if (n > 1):
                 axs[0][i].set_xlim(x_scale)
                 axs[0][i].set_ylim(y_scale)
             else:
                 axs[0].set_xlim(x_scale)
                 axs[0].set_ylim(y_scale)
-                
+
             heatmap, xedges, yedges = np.histogram2d(np.concatenate((X[:, i], x_scale)),    # We add a point in the upper-left corner and upper-right corner of the heatmap
                                                      np.concatenate((y, y_scale)), bins=50) # so all heatmaps will have the same edges and be displayed correctly
         else:
             heatmap, xedges, yedges = np.histogram2d(X[:, i], y, bins=50)
-        
+
         extent = [xedges[0], xedges[-1], yedges[0], yedges[-1]]
-        
+
         if (n > 1):
             axs[0][i].imshow(heatmap.T, extent=extent, origin='lower')
 
@@ -84,7 +84,7 @@ def plot_weights_data_biasless(plt, X, y, w, title, same_scale = True):
             axs[1].set_xlim((-2, 2))
             axs[1].set_ylim(y_scale_line)
             axs[1].plot(x, w[i]*x, c="red", linewidth=2)
-        
+
     fig.tight_layout()
 ```
 
@@ -97,13 +97,13 @@ The dataset can found at: https://archive.ics.uci.edu/ml/datasets/Combined+Cycle
 def load_data_excel(excel_path, y_label, drops=[]):
     df = pd.read_excel(excel_path, sheet_name=None)  # Excel datasets might be spread over multiple sheets. To concactenate all the sheets into one DataFrame,
     df = pd.concat(df, ignore_index=True)            # we use the "sheet_name=None" argument when reading and then pd.concat with "ignore_index=True"
-    
+
     for drop in drops:                               # We add an optional "drops" argument, telling which columns to drop as soon as the data is loaded
         df = df.drop(drop, axis=1)
-    
+
     y = df[y_label].to_numpy()                       # y_label tells which column corresponds to the ouput of our ML model, the value we will try to predict
     X = df.drop(y_label, axis=1).to_numpy()
-    
+
     return X, y, df
 ```
 
@@ -119,7 +119,7 @@ print(df.describe())
 ```
 
     Index(['AT', 'V', 'AP', 'RH', 'PE'], dtype='object')
-    
+
               AT      V       AP     RH      PE
     36110  14.84  41.48  1017.26  63.42  460.30
     2224   29.64  69.51  1012.13  44.65  428.69
@@ -131,7 +131,7 @@ print(df.describe())
     12341  19.69  39.72  1001.49  60.34  456.55
     16187   6.59  39.37  1020.34  77.92  488.17
     18744  16.54  42.86  1014.85  78.00  465.26
-    
+
                      AT             V            AP            RH            PE
     count  47840.000000  47840.000000  47840.000000  47840.000000  47840.000000
     mean      19.651231     54.305804   1013.259078     73.308978    454.365009
@@ -150,7 +150,7 @@ To normalize the features, we implement a function with two modes, "min-max" or 
 
 ```python
 def normalizeFeatures(X, mode="min-max"):   # Put all columns (classes) on the same scale (scaling) and brings them on the origin [0; 1]
-                                            # And add a 1s column for the factor associated to the bias 
+                                            # And add a 1s column for the factor associated to the bias
 
     X_t = X.T # Go from the individual points as lines to columns as lines (by default numpy operations are applied line by line)
               #
@@ -161,8 +161,8 @@ def normalizeFeatures(X, mode="min-max"):   # Put all columns (classes) on the s
 
     # For normalization we suppose no variable has always the same value (otherwise there would a division by 0)
     # If a variable has always the same value, it should be removed from the dataset as it is pointless in the linear regression
-    
-    
+
+
     if (mode == "min-max"): # Feature scaling using minimums and maximums
         minimums = X_t.min(axis = 1)[:, None] # Create a new axis to convert scalars to 1-element arrays
         maximums = X_t.max(axis = 1)[:, None] # Create a new axis to convert scalars to 1-element arrays
@@ -173,7 +173,7 @@ def normalizeFeatures(X, mode="min-max"):   # Put all columns (classes) on the s
 
     X = X_t.T
     X = np.c_[np.ones((X.shape[0], 1)), X] # Add a 1s column to the new scaled matrix for the bias for matrix multiplications
-    
+
     return X
 ```
 
@@ -188,7 +188,7 @@ def costFunction(w, X, y, function="squares"):
     if (function == "squares"):
         return (1/(2*len(X))) * (error.T @ error)      # Here we impletement the least squares cost function
     elif (function == "absolute"):
-        return (1/(2*len(X))) * np.sum(np.abs(error))  # Here, just for fun, we implement an absolute value cost function (convex as well, corresponding 
+        return (1/(2*len(X))) * np.sum(np.abs(error))  # Here, just for fun, we implement an absolute value cost function (convex as well, corresponding
                                                        # to the sum of the absolute values of the error)
 ```
 
@@ -204,22 +204,22 @@ def gradientDescent(alpha, w, X, y, iterations, delta, print_every=500, print_fi
     decrease_factor = 0.5
 
     m = len(X)
-    
+
     previous_weights = None
-    
+
     start = time.time() * 1000
     first_print = True
     while (i < iterations and (i < 1 or previous_cost-curr_cost > delta or previous_cost-curr_cost < 0)):
         if (previous_cost-curr_cost < 0 and i > 1):
             alpha = alpha * decrease_factor
             w = previous_weights
-        
+
 
         # Since the cost function is the sum of the costs associated to each errors, the gradient of the cost function
         # can be expressed as the sum of the derivatives for the costs associated to the error (since the derivative of a sum is the sum of the derivatives)
 
         # The gradient can simply be calculated as ∇J(Xw - y) = X_t * J'(Xw - y) (because of the chain rule)
-    
+
         error = X @ w - y                                                 # We use the predicted y (hypothesis) - true y notation instead of the usual true y - predicted y
                                                                           # to simply calculations
         if (function == "squares"):
@@ -227,10 +227,10 @@ def gradientDescent(alpha, w, X, y, iterations, delta, print_every=500, print_fi
         elif (function == "absolute"):
             error = (X @ w) - y
             gradient = (1/(2*m)) * (X.T @ (error / ( np.abs(error) )))    # The derivative of g(x) = abs(f(x)) is g'(x) = f'(x) * (f(x)/abs(f(x)))
-            
+
         previous_weights = w
         w = w - alpha*gradient
-        
+
         previous_cost = curr_cost
         curr_cost = costFunction(w, X, y, function)
 
@@ -242,13 +242,13 @@ def gradientDescent(alpha, w, X, y, iterations, delta, print_every=500, print_fi
                 print("{: >10} {: >40} {: >40} {: >20}".format("curr iter", "cost difference", "curr cost", "alpha"))
                 print()
                 first_print = False
-            
+
             print("{: >10} {: >40} {: >40} {: >20}".format(i, previous_cost-curr_cost if previous_cost != -1 else "N/A", curr_cost, alpha))
 
         i+=1  
-    
+
     end = time.time() * 1000
-    
+
     print()
     print("Weights found: ", w)
 
@@ -263,14 +263,14 @@ We can reuse our cost function implementation to calculate the errors. However, 
 ```python
 def meanAbsoluteError(X, w, y):     # The sum of the absolute values of the error divided by the number of individuals
     return 2*costFunction(w, X, y, function="absolute")
-    
+
 def rootMeanSquaredError(X, w, y):  # The sum of the squares of the error divided by the number of individuals
     return sqrt(2*costFunction(w, X, y))
 
 def r2(X, w, y):                    # One minus the error squared divided by the variance squared
     error = y - (X @ w)
     rss = error.T @ error
-    
+
     var = y-y.mean()
     tss = var.T @ var
 
@@ -283,25 +283,25 @@ For our linear regression algorithm itself, we simply generate random weights be
 ```python
 def linear_regression_from_scratch(path, y_label):
     X, y, df = load_data_excel(path, y_label)
-    
+
     w = np.random.randint(-10, 10, len(X[0]) + 1)
     X_normalized = normalizeFeatures(X)
-    
+
     all_results = []
     for func in ["squares", "absolute"]:
         print(func.capitalize(), "Cost Function Gradient Descent:\n")
         results = gradientDescent(20, w.copy(), X_normalized, y, 100000, 0.000001, 1000, 10, func)
         all_results.append(results)
-        
+
         print()
         print("Initial weights: ", w, "\n")
         print("Least-squares cost function:")
-        
+
         print("Execution time: %.2f ms" % results[1])
         print("Final w: ", results[0])
         print("Iterations: ", results[3])
         print("Score: %.2f (%s)" % (results[4], func.capitalize()))
-    
+
         print()
         print("Mean Absolute Error: %.2f (from scratch), %.2f (sklearn)" % ( meanAbsoluteError(X_normalized, results[0], y),
                                                                              mean_absolute_error(y, X_normalized @ results[0]) ))
@@ -309,7 +309,7 @@ def linear_regression_from_scratch(path, y_label):
                                                                                  mean_squared_error(y, X_normalized @ results[0], squared=False) ))
         print("R2 Score: %.2f (from scratch), %.2f (sklearn)" % ( r2(X_normalized, results[0], y),
                                                                   r2_score(y, X_normalized @ results[0]) ))
-        
+
         print()
 
     fig, ((ax1, ax2)) = plt.subplots(1, 2)
@@ -318,12 +318,12 @@ def linear_regression_from_scratch(path, y_label):
     ax2.plot(np.linspace(0, all_results[1][3], all_results[1][3]), all_results[1][2])
     ax2.set_title("Absolute value cost function")
     fig.tight_layout(pad=3.0)
-    
+
     fig.suptitle("Evolution of the cost function with increasing iterations of the gradient descent", fontsize=20, y=1.08)
 
     plot_weights_data_biasless(plt, X, y, all_results[0][0], "Square Cost Function - w: " + str(all_results[0][0]))
     plot_weights_data_biasless(plt, X, y, all_results[1][0], "Absolute Value Cost Function - w: " + str(all_results[1][0]))
-    
+
     return X, w, y, df
 ```
 
@@ -335,9 +335,9 @@ X, w, y, df = linear_regression_from_scratch("powerplant.xlsx", "PE")
 ```
 
     Squares Cost Function Gradient Descent:
-    
+
      curr iter                          cost difference                                curr cost                alpha
-    
+
              0                                      N/A                       195415802.08396953                   20
              1                      -360631639165.71313                        360827054967.7971                   20
              2                       274769978290.70715                        86057076677.08997                 10.0
@@ -350,25 +350,25 @@ X, w, y, df = linear_regression_from_scratch("powerplant.xlsx", "PE")
              9                      -1091582693326152.9                       1622493461040516.2                 1.25
           1000                     0.005701991068027823                        11.61951136847797                0.625
           2000                   5.7175138627130195e-05                        10.39609414663941                0.625
-    
+
     Weights found:  [502.53335951 -69.57700606 -13.27503187   2.61258824 -11.69118116]
-    
-    Initial weights:  [-5 -1 -7  6 -3] 
-    
+
+    Initial weights:  [-5 -1 -7  6 -3]
+
     Least-squares cost function:
     Execution time: 1137.20 ms
     Final w:  [502.533 -69.577 -13.275   2.613 -11.691]
     Iterations:  2881
     Score: 10.38 (Squares)
-    
+
     Mean Absolute Error: 3.63 (from scratch), 3.63 (sklearn)
     Root Mean Squared Error: 4.56 (from scratch), 4.56 (sklearn)
     R2 Score: 0.93 (from scratch), 0.93 (sklearn)
-    
+
     Absolute Cost Function Gradient Descent:
-    
+
      curr iter                          cost difference                                curr cost                alpha
-    
+
              0                                      N/A                       220.26338062056482                   20
              1                       10.922426431309276                       209.34095418925554                   20
              2                       10.922426431309276                       198.41852775794626                   20
@@ -381,39 +381,39 @@ X, w, y, df = linear_regression_from_scratch("powerplant.xlsx", "PE")
              9                       10.922426431309233                       121.96154273878143                   20
           1000                     0.001406858427301927                       2.1112984576017193                 10.0
           2000                   1.0585840893417853e-05                       1.8108684947986275                  5.0
-    
+
     Weights found:  [503.2389214  -70.67589557 -13.68880356   1.94425688 -11.28738914]
-    
-    Initial weights:  [-5 -1 -7  6 -3] 
-    
+
+    Initial weights:  [-5 -1 -7  6 -3]
+
     Least-squares cost function:
     Execution time: 1535.59 ms
     Final w:  [503.239 -70.676 -13.689   1.944 -11.287]
     Iterations:  2798
     Score: 1.81 (Absolute)
-    
+
     Mean Absolute Error: 3.61 (from scratch), 3.61 (sklearn)
     Root Mean Squared Error: 4.57 (from scratch), 4.57 (sklearn)
     R2 Score: 0.93 (from scratch), 0.93 (sklearn)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_22_1.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_22_2.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_22_3.png)
-    
+
 
 
 ## Part II: Linear Regression using Scikit Learn
@@ -431,13 +431,13 @@ We obtain the same result with scikit-learn as with our linear regression implem
 def linear_regression_stats(w, X, y, y_pred, columns, title="Linear Regression", X_display=False):
     print("Weights:", len(w), "components")
     print()
-    
+
     dict_w = dict(zip(["Bias"] + list(columns), w))
     print("Coefficients:")
-    
+
     for k, v in dict_w.items():
         print(f'{k:<20} {v}')
-    
+
     print()
     print("Mean absolute error: %.2f"
           % mean_absolute_error(y, y_pred))
@@ -447,11 +447,11 @@ def linear_regression_stats(w, X, y, y_pred, columns, title="Linear Regression",
 
     print("Coefficient of determination: %.2f"
           % r2_score(y, y_pred))
-    
+
     if(X_display is not False):
         plot_weights_data_biasless(plt, X_display, y, w, title)
-    
-    
+
+
     return
 ```
 
@@ -465,10 +465,10 @@ def linear_regression_sklearn(path, y_label):
 
     model = linear_model.LinearRegression()
     model.fit(X_normalized, y)
-    
+
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop(y_label, axis=1).columns, "Scikit Learn Linear Regression", X)
-    
+
     return X, w, y, df
 ```
 
@@ -478,23 +478,23 @@ X, w, y, df = linear_regression_sklearn("powerplant.xlsx", "PE")
 ```
 
     Weights: 5 components
-    
+
     Coefficients:
     Bias                 502.69952629563875
     AT                   -69.80621266422945
     V                    -13.146102949136466
     AP                   2.508771758184392
     RH                   -11.790836077564483
-    
+
     Mean absolute error: 3.63
     Root mean squared error: 4.56
     Coefficient of determination: 0.93
 
 
 
-    
+
 ![png](notebook_files/notebook_27_1.png)
-    
+
 
 
 ## Part III: Linear Regression using the Normal Equation (from scratch)
@@ -512,7 +512,7 @@ def createOnesVector(n):
     vector = []
     for i in range(n):
         vector.append(1)
-    
+
     return vector
 
 def normalizeFeaturesMatrix(X):
@@ -520,13 +520,13 @@ def normalizeFeaturesMatrix(X):
     for column in X_t:
         maximum = max(column)
         minimum = min(column)
-        
+
         for i in range(len(column)):
             column[i] = (column[i] - minimum)/(maximum-minimum)
-    
+
     first_column = createOnesVector(len(X))
     X_t.insert(0, first_column)
-    
+
     return transposeMatrix(X_t)
 
 def productMatrix(X, Y):
@@ -535,18 +535,18 @@ def productMatrix(X, Y):
     for i in range(len(Y)):
        if isinstance(Y[i], (int, float)):
            Y[i] = [Y[i]]
-           
+
     for i in range(len(X)):
        if isinstance(X[i], (int, float)):
            X[i] = [X[i]]
-           
+
     for i in range(len(X)):
         result.append([])
         for j in range(len(Y[0])):
             result[i].append(0)
-    
+
     # iterate through rows of X    
-           
+
     for i in range(len(X)):
        # iterate through columns of Y
        for j in range(len(Y[0])):
@@ -591,12 +591,12 @@ def getMatrixInverse(m):
     return cofactors
 ```
 
-We apply the normal equation formula ( (X_t * X)^-1 * (X_t * y) ) and then display the obtained weights.
+We apply the normal equation formula $(X_t\ X)^{-1}\ (X_t\ y)$ and then display the obtained weights.
 
 
 ```python
 def linear_regression_normal_equation(path, y_label):
-    
+
     X, y, df = load_data_excel(path, y_label)
 
     X_normalized = normalizeFeaturesMatrix(X)
@@ -605,13 +605,13 @@ def linear_regression_normal_equation(path, y_label):
     w = productMatrix (
             getMatrixInverse (
                 productMatrix(X_t, X_normalized)
-            ), 
+            ),
                 productMatrix(X_t, list(y))
         )
 
     linear_regression_stats(w, X_normalized, y, productMatrix(X_normalized, w),
                             df.drop(y_label, axis=1).columns, "Linear Regression Using the Normal Equation", X)
-    
+
     return X, w, y, df
 ```
 
@@ -623,23 +623,23 @@ X, w, y, df = linear_regression_normal_equation("powerplant.xlsx", "PE")
 ```
 
     Weights: 5 components
-    
+
     Coefficients:
     Bias                 [502.69952629770523]
     AT                   [-69.80621266353046]
     V                    [-13.1461029532893]
     AP                   [2.508771759332376]
     RH                   [-11.790836079060682]
-    
+
     Mean absolute error: 3.63
     Root mean squared error: 4.56
     Coefficient of determination: 0.93
 
 
 
-    
+
 ![png](notebook_files/notebook_34_1.png)
-    
+
 
 
 # Second Dataset: Analysis & Model Fitting of the Bike Sharing Dataset
@@ -658,7 +658,7 @@ def load_bike_data():
 
     y = df['demand'].to_numpy()
     X = df.drop('demand', axis=1).to_numpy()
-    
+
     return X, y, df
 ```
 
@@ -689,7 +689,7 @@ print(df_unique)
 ```
 
     Index(['season', 'yr', 'mnth', 'hr', 'holiday', 'workingday', 'weathersit', 'temp', 'hum', 'windspeed', 'dayOfWeek', 'days', 'demand'], dtype='object')
-    
+
            season  yr  mnth  hr  holiday  workingday  weathersit  temp   hum  windspeed  dayOfWeek  days  demand
     4151        3   0     6  21        0           0           2  0.70  0.54     0.1045          6   172     183
     4895        3   0     7  21        0           1           1  0.74  0.48     0.1045          2   203     245
@@ -701,7 +701,7 @@ print(df_unique)
     5359        3   0     8   5        0           1           1  0.62  0.73     0.2836          1   223      30
     15674       4   1    10   7        0           0           1  0.40  0.82     0.0000          5   653      65
     5592        3   0     8  22        0           1           1  0.62  0.83     0.0000          3   233     147
-    
+
        Column names  # Unique Data Type                             Unique values
     0        season         4     int64                             1 - 2 - 3 - 4
     1            yr         2     int64                                     0 - 1
@@ -736,9 +736,9 @@ heatmap_correlations()
 ```
 
 
-    
+
 ![png](notebook_files/notebook_41_0.png)
-    
+
 
 
 ## Part I: Raw Linear Regression
@@ -748,7 +748,7 @@ We reuse the same functions/logic as before to implement the linear regressions 
 
 ```python
 def linear_regression_from_scratch_bike():
-    
+
     X, y, df = load_bike_data()
 
     X_t = X.T
@@ -761,16 +761,16 @@ def linear_regression_from_scratch_bike():
         print(func.capitalize(), "Cost Function Gradient Descent:\n")
         results = gradientDescent(20, w.copy(), X_normalized, y, 100000, 0.000001, 5000, 10, func)
         all_results.append(results)
-        
+
         print()
         print("Initial weights: ", w, "\n")
         print(func.capitalize(), "cost function:")
-        
+
         print("Execution time: %.2f ms" % results[1])
         print("Final w: ", results[0])
         print("Iterations: ", results[3])
         print("Score: %.2f (%s)" % (results[4], func.capitalize()))
-    
+
         print()
         print("Mean Absolute Error: %.2f (from scratch), %.2f (sklearn)" % ( meanAbsoluteError(X_normalized, results[0], y),
                                                                              mean_absolute_error(y, X_normalized @ results[0]) ))
@@ -778,7 +778,7 @@ def linear_regression_from_scratch_bike():
                                                                                  mean_squared_error(y, X_normalized @ results[0], squared=False) ))
         print("R2 Score: %.2f (from scratch), %.2f (sklearn)" % ( r2(X_normalized, results[0], y),
                                                                   r2_score(y, X_normalized @ results[0]) ))
-        
+
         print()
 
     fig, ((ax1, ax2)) = plt.subplots(1, 2)
@@ -787,9 +787,9 @@ def linear_regression_from_scratch_bike():
     ax2.plot(np.linspace(0, all_results[1][3], all_results[1][3]), all_results[1][2])
     ax2.set_title("Absolute value cost function")
     fig.tight_layout(pad=3.0)
-    
+
     fig.suptitle("Evolution of the cost function with increasing iterations of the gradient descent", fontsize=20, y=1.08)
-    
+
     return X, w, y, df
 ```
 
@@ -799,9 +799,9 @@ X, w, y, df = linear_regression_from_scratch_bike()
 ```
 
     Squares Cost Function Gradient Descent:
-    
+
      curr iter                          cost difference                                curr cost                alpha
-    
+
              0                                      N/A                        116316723.4560647                   20
              1                       -652644168094.1022                        652760484817.5582                   20
              2                        493897747385.7277                        158862737431.8305                 10.0
@@ -825,28 +825,28 @@ X, w, y, df = linear_regression_from_scratch_bike()
          55000                   2.3255179257830605e-06                        10076.77787260662               0.3125
          60000                    1.703321686363779e-06                       10076.767881413867               0.3125
          65000                   1.2475957191782072e-06                        10076.76056338422               0.3125
-    
+
     Weights found:  [  12.51829782   60.1667      122.54359936   38.08755315  177.15381016
       -24.37336462    4.51867719  -11.43225612  277.20917373 -196.86191416
        25.31465639    1.02458144  -82.59786157]
-    
-    Initial weights:  [-4  2 -4  9  1 -4  1 -7 -8 -9 -4  6  3] 
-    
+
+    Initial weights:  [-4  2 -4  9  1 -4  1 -7 -8 -9 -4  6  3]
+
     Squares cost function:
     Execution time: 11037.94 ms
     Final w:  [  12.518   60.167  122.544   38.088  177.154  -24.373    4.519  -11.432
       277.209 -196.862   25.315    1.025  -82.598]
     Iterations:  68554
     Score: 10076.76 (Squares)
-    
+
     Mean Absolute Error: 106.10 (from scratch), 106.10 (sklearn)
     Root Mean Squared Error: 141.96 (from scratch), 141.96 (sklearn)
     R2 Score: 0.39 (from scratch), 0.39 (sklearn)
-    
+
     Absolute Cost Function Gradient Descent:
-    
+
      curr iter                          cost difference                                curr cost                alpha
-    
+
              0                                      N/A                        83.01344989279826                   20
              1                        6.203046536422306                        76.81040335637596                   20
              2                        3.983805058385883                        72.82659829799007                   20
@@ -857,14 +857,14 @@ X, w, y, df = linear_regression_from_scratch_bike()
              7                       0.6634974083865899                        65.12553471826693                   20
              8                        0.479096686351312                        64.64643803191562                   20
              9                        0.361984622193134                        64.28445340972249                   20
-    
+
     Weights found:  [ 1.34204500e+01  3.74663675e+01  4.31477070e+01 -4.95932395e+00
       1.77097514e+02 -4.75378330e+00  3.97030899e-03  8.37545313e+00
       2.28844726e+02 -1.80766517e+02  1.79834489e+00  1.77187410e+01
       1.54569231e+01]
-    
-    Initial weights:  [-4  2 -4  9  1 -4  1 -7 -8 -9 -4  6  3] 
-    
+
+    Initial weights:  [-4  2 -4  9  1 -4  1 -7 -8 -9 -4  6  3]
+
     Absolute cost function:
     Execution time: 836.27 ms
     Final w:  [ 1.34200e+01  3.74660e+01  4.31480e+01 -4.95900e+00  1.77098e+02
@@ -872,17 +872,17 @@ X, w, y, df = linear_regression_from_scratch_bike()
       1.79800e+00  1.77190e+01  1.54570e+01]
     Iterations:  3175
     Score: 50.58 (Absolute)
-    
+
     Mean Absolute Error: 101.15 (from scratch), 101.15 (sklearn)
     Root Mean Squared Error: 147.68 (from scratch), 147.68 (sklearn)
     R2 Score: 0.34 (from scratch), 0.34 (sklearn)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_45_1.png)
-    
+
 
 
 
@@ -896,11 +896,11 @@ def linear_regression_scikit_bike():
     model = linear_model.LinearRegression()
     model.fit(X_normalized, y)
 
-    
+
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop("demand", axis=1).columns,
                             "Scikit Learn Linear Regression (Bike Sharing Dataset)")
-    
+
     return X, w, y, df
 ```
 
@@ -910,7 +910,7 @@ X, w, y, df = linear_regression_scikit_bike()
 ```
 
     Weights: 13 components
-    
+
     Coefficients:
     Bias                 12.70222800138481
     season               60.136022510799975
@@ -925,7 +925,7 @@ X, w, y, df = linear_regression_scikit_bike()
     windspeed            25.33532207207788
     dayOfWeek            1.0187825756877227
     days                 -97.41800717998706
-    
+
     Mean absolute error: 106.09
     Root mean squared error: 141.96
     Coefficient of determination: 0.39
@@ -935,7 +935,7 @@ X, w, y, df = linear_regression_scikit_bike()
 ```python
 def linear_regression_normal_equation_bike():
     X, y, df = load_bike_data()
-    
+
     X_normalized = normalizeFeatures(X)
     X_train, X_test, y_train, y_test = train_test_split(X_normalized, y, random_state = 1, test_size=0.2)
 
@@ -943,14 +943,14 @@ def linear_regression_normal_equation_bike():
 
     w = np.linalg.inv( X_train.T @ X_train ) @ ( X_train.T @ y_train )
     print(len(w))
-    
+
     end = time.time() * 1000
-    
-    
+
+
     linear_regression_stats(w, X_normalized, y_test, X_test @ w,
                             df.drop("demand", axis=1).columns,
                             "Linear Regression Using the Normal Equation (Bike Sharing Dataset)")
-    
+
     return X, w, y, df
 ```
 
@@ -961,7 +961,7 @@ X, w, y, df = linear_regression_normal_equation_bike()
 
     13
     Weights: 13 components
-    
+
     Coefficients:
     Bias                 15.079934916228012
     season               59.339308082236016
@@ -976,7 +976,7 @@ X, w, y, df = linear_regression_normal_equation_bike()
     windspeed            20.51289595746175
     dayOfWeek            1.864165235446272
     days                 -116.36340328166261
-    
+
     Mean absolute error: 106.45
     Root mean squared error: 141.72
     Coefficient of determination: 0.40
@@ -990,32 +990,32 @@ The normal equation is slightly more effective than the linear regression, but o
 ```python
 def data_exploration_bike():
     X, y, df = load_bike_data()
-    
+
     w = np.linalg.inv( X.T @ X ) @ ( X.T @ y )
     y_pred = X @ w
     df['demand_pred'] = y_pred
-    
+
     print('Coefficient of determination: %.2f'
       % r2_score(y, y_pred))
-    
+
     print(len(df))
     print("Ten random samples from the dataset:\n")
     print(df.sample(10).head(10))
-    
-    
+
+
     cyclical_columns = ['season', 'weathersit', 'hr', 'dayOfWeek', 'workingday', 'holiday', 'yr']
-    
+
     for feature in cyclical_columns:
         df_agg = df.groupby(feature).agg(["mean", "median", "var"])
-        
+
         print("\n")
         print(df_agg[["demand", "demand_pred"]].head(10))
-        
+
         bar_width = 0.3
         fig, axs = plt.subplots(1, len(df_agg["demand"].columns))
-        
+
         for i, column in enumerate(df_agg["demand"].columns):
-        
+
             axs[i].bar(df_agg.index - bar_width/2, df_agg["demand"][column], bar_width, label='y true')
             axs[i].bar(df_agg.index + bar_width/2, df_agg["demand_pred"][column], bar_width, label='y predicted')   
             axs[i].legend()
@@ -1035,7 +1035,7 @@ data_exploration_bike()
     Coefficient of determination: 0.39
     17379
     Ten random samples from the dataset:
-    
+
            season  yr  mnth  hr  holiday  workingday  weathersit  temp   hum  windspeed  dayOfWeek  days  demand  demand_pred
     5940        3   0     9   1        0           0           2  0.62  0.94     0.0000          5   247      83    42.268440
     13530       3   1     7  23        0           0           1  0.68  0.79     0.1642          6   563     123   344.168922
@@ -1047,8 +1047,8 @@ data_exploration_bike()
     7996        4   0    12  20        0           0           1  0.36  0.76     0.1343          6   333     124   177.624117
     2678        2   0     4  12        0           1           1  0.70  0.61     0.4179          1   111     186   212.237721
     10301       1   1     3   7        0           0           1  0.22  0.44     0.2537          5   429      40   127.887607
-    
-    
+
+
                 demand                      demand_pred                          
                   mean median           var        mean      median           var
     season                                                                       
@@ -1056,8 +1056,8 @@ data_exploration_bike()
     2       208.344069  165.0  35480.421290  193.216813  191.006952  11559.868944
     3       236.016237  199.0  39089.888724  256.884292  256.776445  10180.924440
     4       198.868856  155.5  33477.278708  189.066755  192.242005   9110.694564
-    
-    
+
+
                     demand                      demand_pred                          
                       mean median           var        mean      median           var
     weathersit                                                                       
@@ -1065,8 +1065,8 @@ data_exploration_bike()
     2           175.165493    133  27367.610731  162.502963  161.305560  10449.299623
     3           111.579281     63  17897.368005  130.773596  127.849197  10234.572738
     4            74.333333     36   6072.333333   26.230515    8.534965   5804.181395
-    
-    
+
+
             demand                      demand_pred                         
               mean median           var        mean      median          var
     hr                                                                      
@@ -1080,8 +1080,8 @@ data_exploration_bike()
     7   212.064649  208.0  26063.498570  116.632991  119.821555  5866.947018
     8   359.011004  385.0  55313.999879  134.790530  136.095544  6612.168659
     9   219.309491  216.0   8780.337968  157.124994  158.203789  7065.198644
-    
-    
+
+
                    demand                      demand_pred                          
                      mean median           var        mean      median           var
     dayOfWeek                                                                       
@@ -1092,22 +1092,22 @@ data_exploration_bike()
     4          196.135907    165  30302.765110  191.835377  189.328695  13197.053107
     5          190.209793    129  32335.437053  184.625748  182.947089  13147.820909
     6          177.468825    116  28280.378676  184.473269  182.196525  11919.571627
-    
-    
+
+
                     demand                     demand_pred                          
                       mean median          var        mean      median           var
     workingday                                                                      
     0           181.405332    119  29878.44714  182.039717  180.097217  12510.035810
     1           193.207754    151  34264.77789  193.207754  191.649945  12702.653684
-    
-    
+
+
                 demand                      demand_pred                          
                   mean median           var        mean      median           var
     holiday                                                                      
     0        190.42858    144  33117.242662  190.635819  188.930652  12666.995484
     1        156.87000     97  24572.906914  156.870000  153.336933  11612.077618
-    
-    
+
+
             demand                      demand_pred                          
               mean median           var        mean      median           var
     yr                                                                       
@@ -1116,45 +1116,45 @@ data_exploration_bike()
 
 
 
-    
+
 ![png](notebook_files/notebook_53_1.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_53_2.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_53_3.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_53_4.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_53_5.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_53_6.png)
-    
 
 
 
-    
+
+
 ![png](notebook_files/notebook_53_7.png)
-    
+
 
 
 As we can see, the variance of each variable is very badly estimated by our model, and the mean for the demand depending on the hour of day column (hr) is especially incorrectly predicted; assuring that our model can acurately predict the demand depending on the hour is critcal to having a good R squared coefficient, as the hr column is highly correlated with the demand. To find how important the hr column is to predicting the demand, we will try different models.
@@ -1182,7 +1182,7 @@ def model_temp_only():
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop("demand", axis=1).columns,
                             "Scikit Learn Linear Regression (Bike Sharing Dataset - temp only)")
-    
+
     return X, w, y, df
 ```
 
@@ -1192,11 +1192,11 @@ X, w, y, df = model_temp_only()
 ```
 
     Weights: 2 components
-    
+
     Coefficients:
     Bias                 7.590302332541086
     temp                 373.6690238139917
-    
+
     Mean absolute error: 125.52
     Root mean squared error: 165.86
     Coefficient of determination: 0.16
@@ -1234,7 +1234,7 @@ X, w, y, df = model_hour_only()
 ```
 
     Weights: 25 components
-    
+
     Coefficients:
     Bias                 374371697728217.06
     hr_0                 -374371697728163.7
@@ -1261,7 +1261,7 @@ X, w, y, df = model_hour_only()
     hr_21                -374371697728044.8
     hr_22                -374371697728086.06
     hr_23                -374371697728129.4
-    
+
     Mean absolute error: 88.08
     Root mean squared error: 128.07
     Coefficient of determination: 0.50
@@ -1275,7 +1275,7 @@ Also as we can see, the weights have strange large values; this is due to the fa
 ```python
 def model_all_variables():
     X, y, df = load_bike_data()
-    
+
     season = pd.get_dummies(df.season, prefix="season")
     month = pd.get_dummies(df.mnth, prefix="mnth")
     year = pd.get_dummies(df.yr, prefix="yr")
@@ -1284,10 +1284,10 @@ def model_all_variables():
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, month, year, workingday,
                     weather, dayOfWeek, holiday, hour], axis=1)
-    
+
     y = df["demand"].to_numpy()
     X = df.drop("demand", axis=1).to_numpy()
 
@@ -1300,7 +1300,7 @@ def model_all_variables():
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop("demand", axis=1).columns,
                             "Scikit Learn Linear Regression (Bike Sharing Dataset - all variables)")
-    
+
     return X, w, y, df
 ```
 
@@ -1310,7 +1310,7 @@ X, w, y, df = model_all_variables()
 ```
 
     Weights: 61 components
-    
+
     Coefficients:
     Bias                 -3287449034800647.5
     temp                 229.47279613872115
@@ -1373,7 +1373,7 @@ X, w, y, df = model_all_variables()
     hr_21                -111255237288157.62
     hr_22                -111255237288194.47
     hr_23                -111255237288233.38
-    
+
     Mean absolute error: 75.11
     Root mean squared error: 101.65
     Coefficient of determination: 0.69
@@ -1381,23 +1381,23 @@ X, w, y, df = model_all_variables()
 
 With all the variables in our datasets, we obtain a R squared coefficient of 0.69, which is pretty mediocre, but seems to be the maximum that can be attained using a linear model. However, we observe that we have 61 components to our weights (39 more than with just the hour), for only 0.19 gained on our R2. We will try to trim down our model to have the optimal R2/number of variables ratio.
 
-To remove variables, we can think logically: workingday contains most of the relevant information of week days (since what differentiates weeks days from the weekend is whether they are days of work, and it is improbable that consumer habits would change drastically in between week days), we can drop dayOfWeek and holiday (because there are very few days that are non-working and are not holidays). Also, most of the information of month is carried in season (which is also mostly contained in weather and tempature, as they are the most correlated on the correlation heatmap, but logically because what mostly change in between months is the climate) and year (as it describes long term changes in consumer tendencies), so we will drop the mnth column. 
+To remove variables, we can think logically: workingday contains most of the relevant information of week days (since what differentiates weeks days from the weekend is whether they are days of work, and it is improbable that consumer habits would change drastically in between week days), we can drop dayOfWeek and holiday (because there are very few days that are non-working and are not holidays). Also, most of the information of month is carried in season (which is also mostly contained in weather and tempature, as they are the most correlated on the correlation heatmap, but logically because what mostly change in between months is the climate) and year (as it describes long term changes in consumer tendencies), so we will drop the mnth column.
 
 
 ```python
 def model_all_variables_trimmed():
     X, y, df = load_bike_data()
-    
+
     print(df.columns)
     season = pd.get_dummies(df.season, prefix="season")
     year = pd.get_dummies(df.yr, prefix="yr")
     workingday = pd.get_dummies(df.workingday, prefix="workingday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, year, workingday,
                     weather, hour], axis=1)
-    
+
     y = df["demand"].to_numpy()
     X = df.drop("demand", axis=1).to_numpy()
 
@@ -1410,7 +1410,7 @@ def model_all_variables_trimmed():
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop("demand", axis=1).columns,
                             "Scikit Learn Linear Regression (Bike Sharing Dataset - trimmed model)")
-    
+
     return X, w, y, df
 ```
 
@@ -1421,7 +1421,7 @@ X, w, y, df = model_all_variables_trimmed()
 
     Index(['season', 'yr', 'mnth', 'hr', 'holiday', 'workingday', 'weathersit', 'temp', 'hum', 'windspeed', 'dayOfWeek', 'days', 'demand'], dtype='object')
     Weights: 40 components
-    
+
     Coefficients:
     Bias                 31410054584152.043
     temp                 239.13103129069313
@@ -1463,7 +1463,7 @@ X, w, y, df = model_all_variables_trimmed()
     hr_21                -133550602608.30258
     hr_22                -133550602645.45706
     hr_23                -133550602684.42998
-    
+
     Mean absolute error: 75.61
     Root mean squared error: 102.51
     Coefficient of determination: 0.68
@@ -1475,16 +1475,16 @@ Despite having removed 21 components to the weight, we have lost almost no infor
 ```python
 def model_all_variables_most_trimmed():
     X, y, df = load_bike_data()
-    
+
     print(df.columns)
     season = pd.get_dummies(df.season, prefix="season")
     year = pd.get_dummies(df.yr, prefix="yr")
     workingday = pd.get_dummies(df.workingday, prefix="workingday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "demand"]], season, year, workingday, hour], axis=1)
-    
+
     y = df["demand"].to_numpy()
     X = df.drop("demand", axis=1).to_numpy()
 
@@ -1497,7 +1497,7 @@ def model_all_variables_most_trimmed():
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop("demand", axis=1).columns,
                             "Scikit Learn Linear Regression (Bike Sharing Dataset - most trimmed model)")
-    
+
     return X, w, y, df
 ```
 
@@ -1508,7 +1508,7 @@ X, w, y, df = model_all_variables_most_trimmed()
 
     Index(['season', 'yr', 'mnth', 'hr', 'holiday', 'workingday', 'weathersit', 'temp', 'hum', 'windspeed', 'dayOfWeek', 'days', 'demand'], dtype='object')
     Weights: 34 components
-    
+
     Coefficients:
     Bias                 1108457999753337.8
     temp                 253.38856765867126
@@ -1544,7 +1544,7 @@ X, w, y, df = model_all_variables_most_trimmed()
     hr_21                46972918792839.76
     hr_22                46972918792801.65
     hr_23                46972918792760.59
-    
+
     Mean absolute error: 77.38
     Root mean squared error: 105.57
     Coefficient of determination: 0.66
@@ -1556,15 +1556,15 @@ X, w, y, df = model_all_variables_most_trimmed()
 ```python
 def model_final():
     X, y, df = load_bike_data()
-    
+
     print(df.columns)
     season = pd.get_dummies(df.season, prefix="season")
     workingday = pd.get_dummies(df.workingday, prefix="workingday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "demand"]], season, workingday, hour], axis=1)
-    
+
     y = df["demand"].to_numpy()
     X = df.drop("demand", axis=1).to_numpy()
 
@@ -1577,7 +1577,7 @@ def model_final():
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop("demand", axis=1).columns,
                             "Scikit Learn Linear Regression (Bike Sharing Dataset - final model)")
-    
+
     return X, w, y, df
 ```
 
@@ -1588,7 +1588,7 @@ X, w, y, df = model_final()
 
     Index(['season', 'yr', 'mnth', 'hr', 'holiday', 'workingday', 'weathersit', 'temp', 'hum', 'windspeed', 'dayOfWeek', 'days', 'demand'], dtype='object')
     Weights: 32 components
-    
+
     Coefficients:
     Bias                 695432919332540.4
     temp                 284.0390424705157
@@ -1622,7 +1622,7 @@ X, w, y, df = model_final()
     hr_21                -253406438848295.22
     hr_22                -253406438848333.0
     hr_23                -253406438848373.62
-    
+
     Mean absolute error: 82.43
     Root mean squared error: 114.41
     Coefficient of determination: 0.60
@@ -1634,17 +1634,17 @@ Our final model has a coefficient of determination of 0.6, which is pretty medio
 ```python
 def model_absolute():
     X, y, df = load_bike_data()
-        
+
     def coef_dir(df):
         coef_hour=[]
 
         for i in range (0, np.size(df.to_numpy(),0)):
             if(i>=2):
                 coef_hour.append((df['demand'].iloc[i-2]-df['demand'].iloc[i-1])/((i-2)-(i-1)))
-                
+
         df = df.loc[2:, :]
         df.insert(1, 'coef_hour', coef_hour)
-        
+
         return df
 
     df = coef_dir(df)
@@ -1660,13 +1660,13 @@ def model_absolute():
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "coef_hour", "previous_hour", "demand"]], season, month, year, workingday,
                     weather, dayOfWeek, holiday, hour], axis=1)
 
-    
+
     X = df.drop(columns='demand', axis=1)
-    
+
     y = df.demand
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1, test_size=0.2)
 
@@ -1679,7 +1679,7 @@ def model_absolute():
     linear_regression_stats([model.intercept_] + list(model.coef_), X_normalized, y,
                             model.predict(X_normalized), df.drop("demand", axis=1).columns,
                             "Scikit Learn Linear Regression (Bike Sharing Dataset - all variables + slope & memory)")
-    
+
     return X, w, y, df
 ```
 
@@ -1689,7 +1689,7 @@ X, w, y, df = model_absolute()
 ```
 
     Weights: 63 components
-    
+
     Coefficients:
     Bias                 1253686445631265.2
     temp                 84.62225251644675
@@ -1754,7 +1754,7 @@ X, w, y, df = model_absolute()
     hr_21                -71180661004618.6
     hr_22                -71180661004641.0
     hr_23                -71180661004665.97
-    
+
     Mean absolute error: 43.93
     Root mean squared error: 61.68
     Coefficient of determination: 0.88
@@ -1770,7 +1770,7 @@ Now we will experiment using other models, such as polynomial regression, GBRs &
 ```python
 def model_polynomial():
     X, y, df = load_bike_data()
-    
+
     season = pd.get_dummies(df.season, prefix="season")
     month = pd.get_dummies(df.mnth, prefix="mnth")
     year = pd.get_dummies(df.yr, prefix="yr")
@@ -1779,16 +1779,16 @@ def model_polynomial():
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, month, year, workingday,
                     weather, dayOfWeek, holiday, hour], axis=1)
-    
+
     X = df.drop(columns='demand', axis=1).to_numpy()
     y = df.demand
 
     poly = PolynomialFeatures(2)
     X = poly.fit_transform(X)
-    
+
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 3, test_size=0.2)
 
@@ -1797,12 +1797,12 @@ def model_polynomial():
 
     model = linear_model.LinearRegression()
     model.fit(X_train, y_train)
-    
+
     # Display only the first 50 weights
     linear_regression_stats([model.intercept_] + list(model.coef_), X_test, y_test,
                             model.predict(X_test), range(50),
-                            "Scikit Learn Linear Regression (Bike Sharing Dataset - polynomial regression)") 
-    
+                            "Scikit Learn Linear Regression (Bike Sharing Dataset - polynomial regression)")
+
     return X, w, y, df
 ```
 
@@ -1812,7 +1812,7 @@ X, w, y, df = model_polynomial()
 ```
 
     Weights: 1892 components
-    
+
     Coefficients:
     Bias                 -565856671135023.1
     0                    453706089558032.0
@@ -1865,7 +1865,7 @@ X, w, y, df = model_polynomial()
     47                   52402963991323.3
     48                   -74300992134451.52
     49                   38700306147340.95
-    
+
     Mean absolute error: 35.27
     Root mean squared error: 51.33
     Coefficient of determination: 0.92
@@ -1875,23 +1875,23 @@ X, w, y, df = model_polynomial()
 ```python
 def model_polynomial_bis():
     X, y, df = load_bike_data()
-    
+
     season = pd.get_dummies(df.season, prefix="season")
     month = pd.get_dummies(df.mnth, prefix="mnth")
     workingday = pd.get_dummies(df.workingday, prefix="workingday")
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, workingday,
                     weather, holiday, hour], axis=1)
-    
+
     X = df.drop(columns='demand', axis=1).to_numpy()
     y = df.demand
 
     poly = PolynomialFeatures(2)
     X = poly.fit_transform(X)
-    
+
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 3, test_size=0.2)
 
@@ -1900,12 +1900,12 @@ def model_polynomial_bis():
 
     model = linear_model.LinearRegression()
     model.fit(X_train, y_train)
-    
+
     # Display only the first 50 weights
     linear_regression_stats([model.intercept_] + list(model.coef_), X_test, y_test,
                             model.predict(X_test), range(50),
-                            "Scikit Learn Linear Regression (Bike Sharing Dataset - polynomial regression)") 
-    
+                            "Scikit Learn Linear Regression (Bike Sharing Dataset - polynomial regression)")
+
     return X, w, y, df
 ```
 
@@ -1915,7 +1915,7 @@ X, w, y, df = model_polynomial_bis()
 ```
 
     Weights: 821 components
-    
+
     Coefficients:
     Bias                 250285363322603.88
     0                    1757172700.1106026
@@ -1968,7 +1968,7 @@ X, w, y, df = model_polynomial_bis()
     47                   -82854201264859.03
     48                   -82854201264922.6
     49                   172934285718905.5
-    
+
     Mean absolute error: 54.69
     Root mean squared error: 76.94
     Coefficient of determination: 0.82
@@ -1978,7 +1978,7 @@ X, w, y, df = model_polynomial_bis()
 ```python
 def GBR_scikit_bike():
     X, y, df = load_bike_data()
-    
+
     season = pd.get_dummies(df.season, prefix="season")
     month = pd.get_dummies(df.mnth, prefix="mnth")
     year = pd.get_dummies(df.yr, prefix="yr")
@@ -1987,13 +1987,13 @@ def GBR_scikit_bike():
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, month, year, workingday,
                     weather, dayOfWeek, holiday, hour], axis=1)
-    
+
     X = df.drop(columns='demand', axis=1).to_numpy()
     y = df.demand
-    
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1, test_size=0.2)
 
     regr = GradientBoostingRegressor()
@@ -2002,7 +2002,7 @@ def GBR_scikit_bike():
 
     print('Coefficient of determination: %.2f'
       % r2_score(y_test, y_pred))
-    
+
     print(len(X))
     return X, w, y, df
 ```
@@ -2020,19 +2020,19 @@ X, w, y, df = GBR_scikit_bike()
 ```python
 def GBR_scikit_bike_bis():
     X, y, df = load_bike_data()
-    
+
     season = pd.get_dummies(df.season, prefix="season")
     workingday = pd.get_dummies(df.workingday, prefix="workingday")
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, workingday,
                     weather, holiday, hour], axis=1)
-    
+
     X = df.drop(columns='demand', axis=1).to_numpy()
     y = df.demand
-    
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1, test_size=0.2)
 
     regr = GradientBoostingRegressor()
@@ -2041,7 +2041,7 @@ def GBR_scikit_bike_bis():
 
     print('Coefficient of determination: %.2f'
       % r2_score(y_test, y_pred))
-    
+
     print(len(X))
     return X, w, y, df
 ```
@@ -2059,7 +2059,7 @@ X, w, y, df = GBR_scikit_bike_bis()
 ```python
 def random_forest_scikit_bike():
     X, y, df = load_bike_data()
-    
+
     season = pd.get_dummies(df.season, prefix="season")
     month = pd.get_dummies(df.mnth, prefix="mnth")
     year = pd.get_dummies(df.yr, prefix="yr")
@@ -2068,13 +2068,13 @@ def random_forest_scikit_bike():
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, month, year, workingday,
                     weather, dayOfWeek, holiday, hour], axis=1)
-    
+
     X = df.drop(columns='demand', axis=1).to_numpy()
     y = df.demand
-    
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1, test_size=0.2)
 
     regr = RandomForestRegressor()
@@ -2083,7 +2083,7 @@ def random_forest_scikit_bike():
 
     print('Coefficient of determination: %.2f'
       % r2_score(y_test, y_pred))
-    
+
     print(len(X))
     return X, w, y, df
 ```
@@ -2101,19 +2101,19 @@ X, w, y, df = random_forest_scikit_bike()
 ```python
 def random_forest_scikit_bike_bis():
     X, y, df = load_bike_data()
-    
+
     season = pd.get_dummies(df.season, prefix="season")
     workingday = pd.get_dummies(df.workingday, prefix="workingday")
     holiday = pd.get_dummies(df.holiday, prefix="holiday")
     weather = pd.get_dummies(df.weathersit, prefix="weather_state")
     hour = pd.get_dummies(df.hr, prefix="hr")
-    
+
     df = pd.concat([df[["temp", "hum", "windspeed", "demand"]], season, workingday,
                     weather, holiday, hour], axis=1)
-    
+
     X = df.drop(columns='demand', axis=1).to_numpy()
     y = df.demand
-    
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state = 1, test_size=0.2)
 
     regr = RandomForestRegressor()
@@ -2122,7 +2122,7 @@ def random_forest_scikit_bike_bis():
 
     print('Coefficient of determination: %.2f'
       % r2_score(y_test, y_pred))
-    
+
     print(len(X))
     return X, w, y, df
 ```
